@@ -7,9 +7,12 @@ on:
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  DEMO_HELM_GIT_TOKEN: ${{ secrets.DEMO_HELM_GIT_TOKEN }}
 
   AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
   ECR_REPOSITORY_NAME: ${{ vars.ECR_REPOSITORY_NAME }}
+  TARGET_REPOSITORY: ${{ vars.TARGET_REPOSITORY }}
+  
 
 jobs:
   push: 
@@ -27,4 +30,24 @@ jobs:
           context: .
           push: true
           tags: ${{ env.ECR_REPOSITORY_NAME }}:${{ github.sha }}
+
+  deploy:
+    needs: push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.TARGET_REPOSITORY }}
+          token: ${{ env.DEMO_HELM_GIT_TOKEN }}
+      - uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: 'demo_app/values.yaml'
+          propertyPath: 'image.tags'
+          value: ${{ github.sha }}
+          message: 'ci: Update image tag to ${{ github.sha }}'
+          commitChange: true
+          branch: main
+          repository: ${{ env.TARGET_REPOSITORY }}
+          token: ${{ env.DEMO_HELM_GIT_TOKEN }}
+    
       
